@@ -1,0 +1,132 @@
+---
+title: "Jornada Basin Lizard Lengths"
+author: "Jacey Van Wert"
+date: "12/6/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(tidyverse)
+library(here)
+library(janitor)
+library(broom)
+library(kableExtra)
+library(ggbeeswarm)
+library(effsize)
+```
+
+
+## Summary
+
+Lizard species in the Jornada Basin Longterm Ecological Research Site were sampled for morphometrics and tail loss using pitfall traps. Two species, *Cnemidophorus uniparens*, the Desert Grassland lizard, and *Cnemidophorus tessalatus*, the Colorado Checkered lizard, were compared for total length in the females using a Welch's T-test. 
+
+## Results 
+
+```{r}
+lizards <- read_csv(here("data","lizards.csv")) %>% 
+  select(spp, sex, total_length) %>%  #selecting spp, length, total_length to simplify dataframe
+  filter(spp %in% c("CNUN", "CNTE")) %>%  #filter for 2 spp
+  filter(sex =="F") #only females
+
+```
+
+
+```{r}
+#Total lengths of female lizards for CNUN and CNTE
+ggplot(lizards, aes(x = spp, y = total_length))+
+  geom_beeswarm(aes(color = spp)) +
+  scale_color_manual(values = c("seagreen4","palegreen")) +
+  geom_boxplot(fill = NA, width = 0.2, outlier.color = NA) +
+  stat_summary(fun=mean, 
+               geom="point", 
+               shape=20, 
+               size=4, 
+               color="black", 
+               fill="black") +
+  scale_x_discrete(name = "\n Species")+
+  theme_minimal() +
+  theme(legend.position = "none")+
+  labs(x = "\nLizard Species",
+       y = "Total Length (mm)\n")
+```
+ 
+**Figure 1.** The total length (millimeters) observations of female lizards from the Jornada Basin LTER, *Cnemidophorus uniparens*, the Desert Grassland lizard, and *Cnemidophorus tessalatus*, the Colorado Checkered lizard. Dark green (CNTE, *Cnemidophorus tessalatus*) and light green (CNUN, *Cnemidophorus uniparens*) points indicate individual observations for total length (millimeters) of female lizards. Box endpoints indicate the 25^th^ and 75^th^ percentile values; the black line and black point within the box indicate the median and mean value for each species, respectively. Data: Lightfoot (2017). 
+
+
+
+```{r}
+#create summary table
+lizard_table <- lizards %>% 
+  group_by(spp) %>% 
+  summarize(
+    mean_total_length = round(mean(total_length, na.rm = TRUE),2),
+    sd_total_length = round(sd(total_length, na.rm = TRUE),2),
+    n = n()
+  )
+```
+**Table 1.** Descriptive statistics (mean, standard deviation, and sample size) for two species of lizards. Data: Lightfoot (2017). 
+
+```{r}
+#clean up summary table
+  lizard_table %>% 
+  kable(col.names = c("Species", "Mean total length (mm)", "Standard deviation (mm)", "Sample size")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+```
+
+
+
+
+```{r, include=FALSE}
+# T-test code: 
+
+# Pull vectors of totallengths for both spp of lizards
+lizards_cnun <- lizards %>% 
+  filter(spp == "CNUN") %>% 
+  pull(total_length)
+
+lizards_cnte <- lizards %>% 
+  filter(spp == "CNTE") %>% 
+  pull(total_length)
+
+
+
+#check assumptions
+
+#Histogram
+ggplot(lizards, aes(x=total_length))+
+  geom_histogram()+
+  facet_wrap(~spp) #generally apper normal
+
+#QQ plot
+ggplot(lizards, aes(sample = total_length))+
+  geom_qq()+
+  facet_wrap(~spp) #cnte relatively linear, cnun some odd trend at greater heights
+
+#Is there a significant difference in total length between CNUN and CNTE lizard spp? 
+lizard_ttest <- t.test(lizards_cnun, lizards_cnte)
+lizard_ttest
+
+# Get the tidy model results to call outputs in-line: 
+lizard_ttest_tidy <- tidy(lizard_ttest)
+
+# Get the means & SDs for each: 
+cnun_mean <- mean(lizards_cnun,na.rm=TRUE)
+cnte_mean <- mean(lizards_cnte,na.rm=TRUE)
+cnun_sd <- sd(lizards_cnun,na.rm=TRUE)
+cnte_sd <- sd(lizards_cnte,na.rm=TRUE)
+
+
+#Effect size
+lizard_effsize <-cohen.d(lizards_cnun, lizards_cnte,na.rm=TRUE)
+```
+
+
+On average, *Cnemidophorus tessalatus* female total lizard lengths are larger than female *Cnemidophorus uniparens* total lengths (`r round(cnte_mean,2)` $\pm$ `r round(cnte_sd, 2)` and `r round(cnun_mean,2)` $\pm$ `r round(cnun_sd, 2)` mm, respectively; mean $\pm$ 1 standard deviation). While the absolute difference in means is `r round(cnun_mean, 2) - round(cnte_mean, 2)` mm (a `r round((cnte_mean - cnun_mean)/((cnte_mean + cnun_mean)/2)*100, 2)`% difference), the difference in means is significant (Welch's two-sample t-test: t(`r round(lizard_ttest_tidy$parameter,2)`) = `r round(lizard_ttest_tidy$statistic,2)`, p < 0.001), and the effect size is small (Cohen's *d* = `r round(lizard_effsize$estimate,2)`) (Table 1).
+
+
+
+
+**Reference**
+
+Lightfoot, D. 2017. Lizard pitfall trap data (LTER-II, LTER-III) ver 36. Environmental Data Initiative. https://doi.org/10.6073/pasta/ff37b4cace16a9943575f3fd7067064e 
