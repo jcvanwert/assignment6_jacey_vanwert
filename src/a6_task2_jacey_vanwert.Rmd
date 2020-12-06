@@ -1,0 +1,97 @@
+---
+title: "Political Affiliation and Environmentalist Self-Identification"
+author: "Jacey Van Wert"
+date: "12/5/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(tidyverse)
+library(here)
+library(janitor)
+library(broom)
+library(kableExtra)
+
+```
+
+
+In 2017, survey data was collected from an online panel of 1331 anonymous panelists across the United States to determine environmental conservation motivation and political preference (Andrews Forest LTER Site and C. Batavia, 2019). This report investigates the association between survey respondents' political affiliation and if they consider themself an environmentalist. Surveyors identified as "Liberal" or "Conservative" were quantified for response to their self-identification as an environmentalist using a chi-square test for independence.
+
+
+```{r}
+#1. Upload data and select for 'ENV_ID' and 'POL_OR'
+
+survey <- read_csv(here("data", "conservation_survey.csv")) %>% 
+  select("ENV_ID", "POL_OR")
+```
+
+```{r}
+#2. Add a column to bin political party into a binary response of "conservative" (POL_OR 1-3) or "liberal" (POL_OR 5-7). Exclude other political affiliations (4,8,9). Using case_when().
+
+survey_political <- survey %>% 
+  mutate(Party = case_when(
+    POL_OR %in% c(1,2,3) ~ "Conservative",
+    POL_OR %in% c(5,6,7) ~ "Liberal"
+  )) %>% 
+  drop_na() %>% 
+  select(-POL_OR) %>% 
+  mutate(env = case_when(
+    ENV_ID %in% "1" ~ "Yes",
+    ENV_ID %in% "2" ~ "No",
+    ENV_ID %in% "3" ~ "Unsure"
+  )) %>% 
+  select(-ENV_ID)
+```
+
+
+*Table 1. Percentage and count (in parenthesis) of surveyors in the United states that identified as "Liberal" or "Conservative" as "Yes", "No," or "I'm not sure", in response to the statement "I consider myself an environmentalist."*
+```{r, include = TRUE}
+## Find counts & proportions, put in a table
+
+#The `janitor::tabyl()` function gets this pretty close to contingency table format...
+
+survey_counts <- survey_political %>% 
+  janitor::tabyl(Party,env)
+
+
+# A table with both counts & proportions
+survey_proportions <- survey_counts %>% 
+  adorn_percentages() %>% 
+  janitor::adorn_pct_formatting(digits = 2) %>% 
+  adorn_ns() %>% 
+  kbl() %>%
+  kable_styling() %>% 
+  footnote(footnote_order = c("Yes", "No", "Unsure"))
+
+
+survey_proportions
+```
+
+
+
+```{r}
+## Make contingency table and run chi-square
+# Use `column_to_rownames` to convert entries in a column to stored rownames: 
+  
+survey_ct <- survey_counts %>% 
+  column_to_rownames(var = "Party")
+```
+
+
+```{r, include = FALSE}
+#Run Chi square
+#Are political affiliation and tail environmentalism independent? 
+  
+survey_x2 <- chisq.test(survey_ct)
+survey_x2
+
+survey_tidy <- tidy(survey_x2)
+```
+
+There is a significant association between political affiliation and environmentalism ($\chi$^2^(`r survey_tidy$parameter`) = `r round(survey_tidy$statistic,2)`, *p* = `r round(survey_tidy$p.value, 3)`). Of the surveyors that consider themselves liberal or conservative, 54% of liberals consider themselves environmentalists, while only 34% of conservatives consider themselves as environmentalists.
+
+**Reference**
+
+Andrews Forest LTER Site and C. Batavia. 2019. Influences on charitable giving for conservation: Online survey data of 1,331 respondents across the US, August 2017 ver 3. Environmental Data Initiative. https://doi.org/10.6073/pasta/926e6270e324a1322a900da14d38b96c
+
