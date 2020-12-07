@@ -1,0 +1,56 @@
+---
+title: "Mono Lake Levels"
+author: "Jacey Van Wert"
+date: "12/6/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(here)
+library(tidyverse)
+library(magick)
+```
+
+
+```{r}
+mono <- read_csv(here("data","mono_lake_annual_levels.csv")) %>% 
+  slice(-(1:5))
+names(mono) <- c("year","level_ft","stable_level","vol_acre_ft", "sa", "vertical_change") 
+mono_graph <- mono %>% 
+  select(year, level_ft)
+mono_graph$level_ft <- as.integer(mono_graph$level_ft)
+mono_graph$year <- as.integer(mono_graph$year)
+
+```
+
+```{r}
+coyote <- image_read(here("icon","coyote.jpg"))
+      raster <- as.raster(coyote)          
+gull <- image_read(here("icon", "gull.png"))
+      raster2 <- as.raster(gull)
+```
+
+```{r}
+ggplot(mono_graph, aes(x = year, y = level_ft))+
+  geom_line( size = 2, color ="#00AFBB") +
+  theme_minimal()+
+  labs(x = "\nYear", y = "Feet above sea level (ft)\n")+
+  geom_hline(yintercept=6377, linetype="dashed", 
+                color = "gray4", size=1, alpha=.5)+
+  geom_hline(yintercept=6360, linetype="dashed", 
+                color = "orange", size=1, alpha = .3)+
+  geom_hline(yintercept=6350, linetype="dashed", 
+                color = "red", size=1, alpha = .3)+
+    geom_vline(xintercept=1941, 
+                color = "cadetblue4", size=1, alpha = .3)+
+  geom_vline(xintercept=1978, 
+                color = "green4", size=1, alpha = .3)+
+  annotation_raster(raster, 1845, 1860, 6370, 6380)+
+  annotation_raster(raster2, 1845,1860, 6350, 6360)
+
+```
+
+**Figure 1.**
+Mono lake, CA water levels (feet above sea level) from 1850 - 2017 with critical lake levels highlighted as horizontal dashed lines and significant events as vertical lines. Land bridges at 6377 ft above sea level (gray dashed line) emerge, giving coyotes access to major bird nesting sites. Water levels at 6360 ft above sea level (orange dashed line) and 6350 ft above sea level (red dashed line) indicate levels at which birds' food sources are adversely affected, chronic and acute, respectively. In 1941 (gray vertical line), water was diverted from Mono Lake throughout California and in 1978 (green vertical line), the Mono Lake Committee was started. 
+
